@@ -12,7 +12,7 @@
       "version": "1.10.1",
       "versionDate": "2026-02-23",
       "versionDescription": "主分支 CI 构建版本",
-      "downloadURL": "https://github.com/QQ-War/iOS-Open-GPX-Tracker/releases/download/ci-build-main/OpenGpxTracker-unsigned-main.ipa",
+      "downloadURL": "https://github.com/QQ-War/iOS-Open-GPX-Tracker/releases/download/ci-build-master/OpenGpxTracker-unsigned-master.ipa",
       "localizedDescription": "OpenGpxTracker iOS 客户端（GPX 轨迹记录、查看与导入导出）。",
       "iconURL": "https://raw.githubusercontent.com/QQ-War/iOS-Open-GPX-Tracker/main/OpenGpxTracker-Watch/Assets.xcassets/AppIcon.appiconset/Icon-1024@1x.png",
       "size": 0
