@@ -20,4 +20,13 @@ extension GPXRoot {
         }
         return tLength
     }
+    
+    /// Elevation gain in meters of all the tracks
+    public var tracksElevationGain: Double {
+        var tGain: Double = 0.0
+        for track in self.tracks {
+            tGain += track.elevationGain
+        }
+        return tGain
+    }
 }

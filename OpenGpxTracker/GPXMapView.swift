@@ -305,6 +305,45 @@ class GPXMapView: MKMapView {
     }
     
     ///
+    /// Erases points at specified point on screen
+    ///
+    func erasePointsAtViewPoint(_ point: CGPoint) {
+        let coords: CLLocationCoordinate2D = convert(point, toCoordinateFrom: self)
+        let radiusInPoints: CGFloat = 20
+        let rect = CGRect(x: point.x - radiusInPoints, y: point.y - radiusInPoints, width: radiusInPoints * 2, height: radiusInPoints * 2)
+        let region = convert(rect, toRegionFrom: self)
+        let radiusInMeters = region.span.latitudeDelta * 111319.9 / 2 // approx conversion
+        
+        session.erasePoints(at: coords, radiusInMeters: radiusInMeters)
+        redrawOverlays()
+    }
+    
+    ///
+    /// Redraws all overlays from session data
+    ///
+    func redrawOverlays() {
+        // Find all polylines and remove them
+        let polylines = overlays.filter { $0 is MKPolyline && $0 !== tileServerOverlay }
+        removeOverlays(polylines)
+        
+        // Add track segments
+        for segment in session.trackSegments {
+            addOverlayOnTop(segment.overlay)
+        }
+        
+        // Add current segment
+        currentSegmentOverlay = session.currentSegment.overlay
+        addOverlayOnTop(currentSegmentOverlay)
+        
+        // Add tracks
+        for track in session.tracks {
+            for segment in track.segments {
+                addOverlayOnTop(segment.overlay)
+            }
+        }
+    }
+    
+    ///
     ///
     /// Converts current map into a GPX String
     ///

@@ -208,8 +208,10 @@ class GPXSession {
         currentSegmentDistance = 0.0
         
         for track in tracks {
-            totalTrackedDistance += track.length
-            totalElevationGain += track.elevationGain
+            for segment in track.segments {
+                totalTrackedDistance += segment.length()
+                totalElevationGain += segment.elevationGain()
+            }
         }
         for segment in trackSegments {
             totalTrackedDistance += segment.length()
@@ -300,8 +302,14 @@ class GPXSession {
     func continueFromGPXRoot(_ gpx: GPXRoot) {
         
         let lastTrack = gpx.tracks.last ?? GPXTrack()
-        totalTrackedDistance += lastTrack.length
-        totalElevationGain += gpx.tracksElevationGain
+        for segment in lastTrack.segments {
+            totalTrackedDistance += segment.length()
+        }
+        for track in gpx.tracks {
+            for segment in track.segments {
+                totalElevationGain += segment.elevationGain()
+            }
+        }
         
         // Add track segments
         self.tracks = gpx.tracks

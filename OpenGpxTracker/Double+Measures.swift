@@ -138,6 +138,30 @@ extension Double {
         return useImperial ? toMilesPerHour() : toKilometersPerHour() as String
     }
     
+    /// Assuming current value is a speed in meters per second (m/s),
+    ///
+    /// - Returns:
+    ///     The pace in min/km or min/mi if `useImperial` is set to `true`.
+    func toPace(useImperial: Bool = false) -> String {
+        if self <= 0 {
+            return "-'--\""
+        }
+        let secondsPerUnit: Double
+        if useImperial {
+            secondsPerUnit = 1.0 / (self * kMilesPerHourInOneMeterPerSecond / 3600.0)
+        } else {
+            secondsPerUnit = 1.0 / (self * kKilometersPerHourInOneMeterPerSecond / 3600.0)
+        }
+        
+        let minutes = Int(secondsPerUnit / 60)
+        let seconds = Int(secondsPerUnit.truncatingRemainder(dividingBy: 60))
+        
+        if minutes > 99 {
+            return "--'--\""
+        }
+        return String(format: "%d'%02d\"", minutes, seconds)
+    }
+    
     /// Asuming current value is an altitud in meters,
     ///
     /// - Returns:

@@ -198,7 +198,9 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
                 map.coreDataHelper.coreDataDeleteAll(of: CDRoot.self) // deleteCDRootFromCoreData()
                 
                 totalTrackedDistanceLabel.distance = (map.session.totalTrackedDistance)
+                elevationGainLabel.text = "▲" + 0.0.toAltitude(useImperial: useImperial)
                 currentSegmentDistanceLabel.distance = (map.session.currentSegmentDistance)
+                paceLabel.text = "-'--\""
                 
                 /*
                 // XXX Left here for reference
@@ -256,11 +258,17 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
     /// Displays current elapsed time (00:00)
     var timeLabel: UILabel
     
+    /// Displays current pace
+    var paceLabel: UILabel
+    
     /// Label that displays last known speed (in km/h)
     var speedLabel: UILabel
     
     /// Distance of the total segments tracked
     var totalTrackedDistanceLabel: DistanceLabel
+    
+    /// Total elevation gain
+    var elevationGainLabel: UILabel
     
     /// Distance of the current segment being tracked (since last time the Tracker button was pressed)
     var currentSegmentDistanceLabel: DistanceLabel
@@ -300,12 +308,29 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
     
     /// Save current track into a GPX file
     var saveButton: UIButton
-	
-	/// Scale Bar View
+    
+    /// Eraser button
+    var eraserButton: UIButton
+    
+    /// Scale Bar View
     var scaleBar: GPXScaleBar
     
     /// Check if device is notched type phone
     var isIPhoneX = false
+    
+    /// Is eraser mode enabled?
+    var isEraserEnabled: Bool = false {
+        didSet {
+            if isEraserEnabled {
+                eraserButton.backgroundColor = kPurpleButtonBackgroundColor
+                map.isScrollEnabled = false
+                followUser = false
+            } else {
+                eraserButton.backgroundColor = kWhiteBackgroundColor
+                map.isScrollEnabled = true
+            }
+        }
+    }
     
     // Signal accuracy images
     /// GPS signal image. Level 0 (no signal)
@@ -333,8 +358,10 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         self.coordsLabel = UILabel(coder: aDecoder)!
         
         self.timeLabel = UILabel(coder: aDecoder)!
+        self.paceLabel = UILabel(coder: aDecoder)!
         self.speedLabel = UILabel(coder: aDecoder)!
         self.totalTrackedDistanceLabel = DistanceLabel(coder: aDecoder)!
+        self.elevationGainLabel = UILabel(coder: aDecoder)!
         self.currentSegmentDistanceLabel = DistanceLabel(coder: aDecoder)!
         
         self.followUserButton = UIButton(coder: aDecoder)!
@@ -347,6 +374,7 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         
         self.trackerButton = UIButton(coder: aDecoder)!
         self.saveButton = UIButton(coder: aDecoder)!
+        self.eraserButton = UIButton(coder: aDecoder)!
         
         self.shareActivityIndicator = UIActivityIndicatorView(coder: aDecoder)
         self.scaleBar = GPXScaleBar(coder: aDecoder)!
@@ -421,6 +449,11 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
             UILongPressGestureRecognizer(target: self, action: #selector(ViewController.addPinAtTappedLocation(_:)))
         )
         
+        // Add tap gesture to show stats
+        let statsTapGesture = UITapGestureRecognizer(target: self, action: #selector(ViewController.statsAreaTapped(_:)))
+        statsTapGesture.delegate = self
+        map.addGestureRecognizer(statsTapGesture)
+        
         // Each time user pans, if the map is following the user, it stops doing that.
         let panGesture = UIPanGestureRecognizer(target: self, action: #selector(ViewController.stopFollowingUser(_:)))
         panGesture.delegate = self
@@ -484,6 +517,12 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         timeLabel.text = "00:00"
         map.addSubview(timeLabel)
         
+        // Pace Label
+        paceLabel.textAlignment = .right
+        paceLabel.font = font18
+        paceLabel.text = "-'--\""
+        map.addSubview(paceLabel)
+        
         // Speed Label
         speedLabel.textAlignment = .right
         speedLabel.font = font18
@@ -497,6 +536,12 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         totalTrackedDistanceLabel.distance = 0.00
         totalTrackedDistanceLabel.autoresizingMask = [.flexibleWidth, .flexibleLeftMargin, .flexibleRightMargin]
         map.addSubview(totalTrackedDistanceLabel)
+        
+        // Elevation gain
+        elevationGainLabel.textAlignment = .right
+        elevationGainLabel.font = font18
+        elevationGainLabel.text = "▲" + 0.0.toAltitude(useImperial: useImperial)
+        map.addSubview(elevationGainLabel)
         
         currentSegmentDistanceLabel.textAlignment = .right
         currentSegmentDistanceLabel.font = font18
@@ -617,6 +662,17 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         resetButton.titleLabel?.adjustsFontSizeToFitWidth = true
         map.addSubview(resetButton)
         
+        // Eraser button
+        eraserButton.layer.cornerRadius = kButtonSmallSize/2
+        eraserButton.backgroundColor = kWhiteBackgroundColor
+        eraserButton.setImage(UIImage(named: "delete"), for: UIControl.State())
+        eraserButton.addTarget(self, action: #selector(ViewController.eraserButtonTapped), for: .touchUpInside)
+        map.addSubview(eraserButton)
+        
+        let eraserGesture = UIPanGestureRecognizer(target: self, action: #selector(ViewController.handleEraserGesture(_:)))
+        eraserGesture.delegate = self
+        map.addGestureRecognizer(eraserGesture)
+        
         addConstraints(isIPhoneX)
         
         map.rotationGesture.delegate = self
@@ -678,8 +734,10 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         
         // Switch off all autoresizing masks translate
         timeLabel.translatesAutoresizingMaskIntoConstraints = false
+        paceLabel.translatesAutoresizingMaskIntoConstraints = false
         speedLabel.translatesAutoresizingMaskIntoConstraints = false
         totalTrackedDistanceLabel.translatesAutoresizingMaskIntoConstraints = false
+        elevationGainLabel.translatesAutoresizingMaskIntoConstraints = false
         currentSegmentDistanceLabel.translatesAutoresizingMaskIntoConstraints = false
         
         let safeAreaGuide = self.view.safeAreaLayoutGuide
@@ -689,17 +747,25 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         // self.topLayoutGuide takes care of the iPhone X safe area, iPhoneXdiff not needed
         NSLayoutConstraint(item: timeLabel, attribute: .top, relatedBy: .equal, toItem: self.appTitleLabel, attribute: .top, multiplier: 1, constant: 20).isActive = true
         
+        NSLayoutConstraint(item: paceLabel, attribute: .trailing, relatedBy: .equal, toItem: self.view, attribute: .trailing, multiplier: 1, constant: -7).isActive = true
+        NSLayoutConstraint(item: paceLabel, attribute: .leading, relatedBy: .equal, toItem: self.view, attribute: .centerX, multiplier: 1, constant: kSignalViewOffset).isActive = true
+        NSLayoutConstraint(item: paceLabel, attribute: .top, relatedBy: .equal, toItem: timeLabel, attribute: .bottom, multiplier: 1, constant: -5).isActive = true
+
         NSLayoutConstraint(item: speedLabel, attribute: .trailing, relatedBy: .equal, toItem: self.view, attribute: .trailing, multiplier: 1, constant: -7).isActive = true
         NSLayoutConstraint(item: speedLabel, attribute: .leading, relatedBy: .equal, toItem: self.view, attribute: .centerX, multiplier: 1, constant: kSignalViewOffset).isActive = true
-        NSLayoutConstraint(item: speedLabel, attribute: .top, relatedBy: .equal, toItem: timeLabel, attribute: .bottom, multiplier: 1, constant: -5).isActive = true
+        NSLayoutConstraint(item: speedLabel, attribute: .top, relatedBy: .equal, toItem: paceLabel, attribute: .bottom, multiplier: 1, constant: -5).isActive = true
         
         NSLayoutConstraint(item: totalTrackedDistanceLabel, attribute: .trailing, relatedBy: .equal, toItem: self.view, attribute: .trailing, multiplier: 1, constant: -7).isActive = true
         NSLayoutConstraint(item: totalTrackedDistanceLabel, attribute: .leading, relatedBy: .equal, toItem: self.view, attribute: .centerX, multiplier: 1, constant: kSignalViewOffset).isActive = true
         NSLayoutConstraint(item: totalTrackedDistanceLabel, attribute: .top, relatedBy: .equal, toItem: speedLabel, attribute: .bottom, multiplier: 1, constant: 5).isActive = true
         
+        NSLayoutConstraint(item: elevationGainLabel, attribute: .trailing, relatedBy: .equal, toItem: self.view, attribute: .trailing, multiplier: 1, constant: -7).isActive = true
+        NSLayoutConstraint(item: elevationGainLabel, attribute: .leading, relatedBy: .equal, toItem: self.view, attribute: .centerX, multiplier: 1, constant: kSignalViewOffset).isActive = true
+        NSLayoutConstraint(item: elevationGainLabel, attribute: .top, relatedBy: .equal, toItem: totalTrackedDistanceLabel, attribute: .bottom, multiplier: 1, constant: 0).isActive = true
+
         NSLayoutConstraint(item: currentSegmentDistanceLabel, attribute: .trailing, relatedBy: .equal, toItem: self.view, attribute: .trailing, multiplier: 1, constant: -7).isActive = true
         NSLayoutConstraint(item: currentSegmentDistanceLabel, attribute: .leading, relatedBy: .equal, toItem: self.view, attribute: .centerX, multiplier: 1, constant: kSignalViewOffset).isActive = true
-        NSLayoutConstraint(item: currentSegmentDistanceLabel, attribute: .top, relatedBy: .equal, toItem: totalTrackedDistanceLabel, attribute: .bottom, multiplier: 1, constant: 0).isActive = true
+        NSLayoutConstraint(item: currentSegmentDistanceLabel, attribute: .top, relatedBy: .equal, toItem: elevationGainLabel, attribute: .bottom, multiplier: 1, constant: 0).isActive = true
         
         // MARK: Signal Chart & Label (on center)
         
@@ -754,6 +820,7 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         trackerButton.translatesAutoresizingMaskIntoConstraints = false
         newPinButton.translatesAutoresizingMaskIntoConstraints = false
         followUserButton.translatesAutoresizingMaskIntoConstraints = false
+        eraserButton.translatesAutoresizingMaskIntoConstraints = false
         saveButton.translatesAutoresizingMaskIntoConstraints = false
         resetButton.translatesAutoresizingMaskIntoConstraints = false
         
@@ -765,12 +832,14 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         // seperation distance between each button
         NSLayoutConstraint(item: trackerButton, attribute: .leading, relatedBy: .equal, toItem: newPinButton, attribute: .trailing, multiplier: 1, constant: kButtonSeparation).isActive = true
         NSLayoutConstraint(item: newPinButton, attribute: .leading, relatedBy: .equal, toItem: followUserButton, attribute: .trailing, multiplier: 1, constant: kButtonSeparation).isActive = true
+        NSLayoutConstraint(item: followUserButton, attribute: .leading, relatedBy: .equal, toItem: eraserButton, attribute: .trailing, multiplier: 1, constant: kButtonSeparation).isActive = true
         NSLayoutConstraint(item: saveButton, attribute: .leading, relatedBy: .equal, toItem: trackerButton, attribute: .trailing, multiplier: 1, constant: kButtonSeparation).isActive = true
         NSLayoutConstraint(item: resetButton, attribute: .leading, relatedBy: .equal, toItem: saveButton, attribute: .trailing, multiplier: 1, constant: kButtonSeparation).isActive = true
 
         // seperation distance between button and bottom of view
         NSLayoutConstraint(item: safeAreaGuide, attribute: .bottom, relatedBy: .equal, toItem: followUserButton, attribute: .bottom, multiplier: 1, constant: kBottomDistance).isActive = true
         NSLayoutConstraint(item: safeAreaGuide, attribute: .bottom, relatedBy: .equal, toItem: newPinButton, attribute: .bottom, multiplier: 1, constant: kBottomDistance).isActive = true
+        NSLayoutConstraint(item: safeAreaGuide, attribute: .bottom, relatedBy: .equal, toItem: eraserButton, attribute: .bottom, multiplier: 1, constant: kBottomDistance).isActive = true
         NSLayoutConstraint(item: safeAreaGuide, attribute: .bottom, relatedBy: .equal, toItem: trackerButton, attribute: .bottom, multiplier: 1, constant: kBottomGap).isActive = true
         NSLayoutConstraint(item: safeAreaGuide, attribute: .bottom, relatedBy: .equal, toItem: saveButton, attribute: .bottom, multiplier: 1, constant: kBottomDistance).isActive = true
         NSLayoutConstraint(item: safeAreaGuide, attribute: .bottom, relatedBy: .equal, toItem: resetButton, attribute: .bottom, multiplier: 1, constant: kBottomDistance).isActive = true
@@ -778,6 +847,8 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         // fixed dimensions for all buttons
         NSLayoutConstraint(item: followUserButton, attribute: .height, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: kButtonSmallSize).isActive = true
         NSLayoutConstraint(item: followUserButton, attribute: .width, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: kButtonSmallSize).isActive = true
+        NSLayoutConstraint(item: eraserButton, attribute: .height, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: kButtonSmallSize).isActive = true
+        NSLayoutConstraint(item: eraserButton, attribute: .width, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: kButtonSmallSize).isActive = true
         NSLayoutConstraint(item: newPinButton, attribute: .height, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: kButtonSmallSize).isActive = true
         NSLayoutConstraint(item: newPinButton, attribute: .width, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: kButtonSmallSize).isActive = true
         NSLayoutConstraint(item: trackerButton, attribute: .height, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: kButtonLargeSize).isActive = true
@@ -929,6 +1000,8 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         self.gpxTrackingStatus = .paused
         
         self.totalTrackedDistanceLabel.distance = self.map.session.totalTrackedDistance
+        self.elevationGainLabel.text = "▲" + self.map.session.totalElevationGain.toAltitude(useImperial: useImperial)
+        self.paceLabel.text = "-'--\""
     }
     
     ///
@@ -1126,6 +1199,34 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         self.followUser = !self.followUser
     }
     
+    @objc func eraserButtonTapped() {
+        isEraserEnabled = !isEraserEnabled
+    }
+    
+    @objc func statsAreaTapped(_ gesture: UITapGestureRecognizer) {
+        if isEraserEnabled { return }
+        let location = gesture.location(in: self.view)
+        
+        // Only show stats if the tap is on the right side where stats are
+        if location.x > self.view.frame.width / 2 {
+            let globalStats = map.session.getGlobalStats()
+            let statsVC = StatsViewController(stats: globalStats, useImperial: useImperial)
+            let navController = UINavigationController(rootViewController: statsVC)
+            self.present(navController, animated: true)
+        }
+    }
+    
+    @objc func handleEraserGesture(_ gesture: UIPanGestureRecognizer) {
+        if !isEraserEnabled { return }
+        let point = gesture.location(in: map)
+        map.erasePointsAtViewPoint(point)
+        
+        // Update stats
+        totalTrackedDistanceLabel.distance = map.session.totalTrackedDistance
+        elevationGainLabel.text = "▲" + map.session.totalElevationGain.toAltitude(useImperial: useImperial)
+        currentSegmentDistanceLabel.distance = map.session.currentSegmentDistance
+    }
+    
     ///
     /// Triggered when reset button was tapped.
     ///
@@ -1320,8 +1421,10 @@ class ViewController: UIViewController, UIGestureRecognizerDelegate {
         
         self.signalAccuracyLabel.textColor = color
         self.timeLabel.textColor = color
+        self.paceLabel.textColor = color
         self.speedLabel.textColor = color
         self.totalTrackedDistanceLabel.textColor = color
+        self.elevationGainLabel.textColor = color
         self.currentSegmentDistanceLabel.textColor = color
         
         // Apply the same forced color behavior to the scale bar
@@ -1437,6 +1540,8 @@ extension ViewController: GPXFilesTableViewControllerDelegate {
         self.gpxTrackingStatus = .paused
         
         self.totalTrackedDistanceLabel.distance = self.map.session.totalTrackedDistance
+        self.elevationGainLabel.text = "▲" + self.map.session.totalElevationGain.toAltitude(useImperial: useImperial)
+        self.paceLabel.text = "-'--\""
         
     }
 }
@@ -1508,6 +1613,7 @@ extension ViewController: CLLocationManagerDelegate {
         
         // Update speed
         speedLabel.text = (newLocation.speed < 0) ? kUnknownSpeedText : newLocation.speed.toSpeed(useImperial: useImperial)
+        paceLabel.text = (newLocation.speed <= 0) ? "-'--\"" : newLocation.speed.toPace(useImperial: useImperial)
         
         // Update Map center and track overlay if user is being followed
         if followUser {
@@ -1517,6 +1623,7 @@ extension ViewController: CLLocationManagerDelegate {
             print("didUpdateLocation: adding point to track (\(newLocation.coordinate.latitude),\(newLocation.coordinate.longitude))")
             map.addPointToCurrentTrackSegmentAtLocation(newLocation)
             totalTrackedDistanceLabel.distance = map.session.totalTrackedDistance
+            elevationGainLabel.text = "▲" + map.session.totalElevationGain.toAltitude(useImperial: useImperial)
             currentSegmentDistanceLabel.distance = map.session.currentSegmentDistance
         }
     }

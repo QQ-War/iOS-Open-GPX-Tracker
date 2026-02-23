@@ -19,5 +19,14 @@ extension GPXTrack {
             trackLength += segment.length()
         }
         return trackLength
-    }    
+    }
+    
+    /// Track elevation gain in meters
+    public var elevationGain: Double {
+        var gain: Double = 0.0
+        for segment in segments {
+            gain += segment.elevationGain()
+        }
+        return gain
+    }
 }
