@@ -3,7 +3,7 @@
   "identifier": "com.qqwar.opengpx.source",
   "subtitle": "OpenGpxTracker iOS 分发",
   "description": "通过 SideStore 分发 OpenGpxTracker iOS CI 构建版本。",
-  "iconURL": "https://raw.githubusercontent.com/QQ-War/iOS-Open-GPX-Tracker/main/OpenGpxTracker-Watch/Assets.xcassets/AppIcon.appiconset/Icon-1024@1x.png",
+  "iconURL": "https://raw.githubusercontent.com/QQ-War/iOS-Open-GPX-Tracker/master/icon.png",
   "apps": [
     {
       "name": "OpenGpxTracker",
@@ -14,7 +14,7 @@
       "versionDescription": "主分支 CI 构建版本",
       "downloadURL": "https://github.com/QQ-War/iOS-Open-GPX-Tracker/releases/download/ci-build-master/OpenGpxTracker-unsigned-master.ipa",
       "localizedDescription": "OpenGpxTracker iOS 客户端（GPX 轨迹记录、查看与导入导出）。",
-      "iconURL": "https://raw.githubusercontent.com/QQ-War/iOS-Open-GPX-Tracker/main/OpenGpxTracker-Watch/Assets.xcassets/AppIcon.appiconset/Icon-1024@1x.png",
+      "iconURL": "https://raw.githubusercontent.com/QQ-War/iOS-Open-GPX-Tracker/master/icon.png",
       "size": 0
     }
   ]
