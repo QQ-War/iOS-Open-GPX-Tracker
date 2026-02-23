@@ -1,0 +1,83 @@
+name: Build IOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "OpenGpxTracker/**"
+      - "OpenGpxTracker-Watch/**"
+      - "OpenGpxTracker-Watch Extension/**"
+      - "OpenGpxTracker.xcodeproj/**"
+      - "scripts/build_unsigned_ipa.sh"
+      - ".github/workflows/ios.yml"
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make build script executable
+        run: chmod +x scripts/build_unsigned_ipa.sh
+
+      - name: Build unsigned IPA
+        run: scripts/build_unsigned_ipa.sh
+
+      - name: Prepare IPA artifact
+        run: |
+          set -e
+          cp build/OpenGpxTracker_unsigned.ipa "build/OpenGpxTracker-unsigned-${{ github.ref_name }}.ipa"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenGpxTracker-unsigned-ipa-${{ github.ref_name }}
+          path: build/OpenGpxTracker-unsigned-${{ github.ref_name }}.ipa
+
+      - name: Delete existing release assets
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.ref.replace('refs/heads/', '');
+            const tag = `ci-build-${branch}`;
+            const assetNames = [
+              `OpenGpxTracker-unsigned-${branch}.ipa`,
+            ];
+            try {
+              const release = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag,
+              });
+              for (const asset of release.data.assets) {
+                if (assetNames.includes(asset.name)) {
+                  await github.rest.repos.deleteReleaseAsset({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    asset_id: asset.id,
+                  });
+                }
+              }
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+
+      - name: Upload IPA to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ci-build-${{ github.ref_name }}
+          name: CI Build (${{ github.ref_name }})
+          prerelease: true
+          files: |
+            build/OpenGpxTracker-unsigned-${{ github.ref_name }}.ipa
