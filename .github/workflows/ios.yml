@@ -7,8 +7,6 @@ on:
       - master
     paths:
       - "OpenGpxTracker/**"
-      - "OpenGpxTracker-Watch/**"
-      - "OpenGpxTracker-Watch Extension/**"
       - "OpenGpxTracker.xcodeproj/**"
       - "scripts/build_unsigned_ipa.sh"
       - ".github/workflows/ios.yml"
