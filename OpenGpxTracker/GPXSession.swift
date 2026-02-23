@@ -47,6 +47,9 @@ class GPXSession {
     /// Total tracked distance in meters
     var totalTrackedDistance = 0.00
     
+    /// Total elevation gain in meters
+    var totalElevationGain = 0.00
+    
     /// Distance in meters of current track (track in which new user positions are being added)
     var currentTrackDistance = 0.00
     
@@ -83,6 +86,18 @@ class GPXSession {
     ///
     func addPointToCurrentTrackSegmentAtLocation(_ location: CLLocation) {
         let pt = GPXTrackPoint(location: location)
+        
+        // Elevation gain
+        if self.currentSegment.points.count >= 1 {
+            let lastPt = self.currentSegment.points.last!
+            if let lastEle = lastPt.elevation, let currEle = pt.elevation {
+                let diff = currEle - lastEle
+                if diff > 0 {
+                    self.totalElevationGain += diff
+                }
+            }
+        }
+        
         self.currentSegment.add(trackpoint: pt)
         
         // Add the distance to previous tracked point
@@ -119,9 +134,144 @@ class GPXSession {
         self.waypoints = []
         
         self.totalTrackedDistance = 0.00
+        self.totalElevationGain = 0.00
         self.currentTrackDistance = 0.00
         self.currentSegmentDistance = 0.00
         
+    }
+    
+    ///
+    /// Erases points near the specified coordinate.
+    /// If points are removed from the middle of a segment, the segment is split.
+    ///
+    func erasePoints(at coordinate: CLLocationCoordinate2D, radiusInMeters: Double) {
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        
+        // Helper to process a list of segments
+        func processSegments(_ segments: [GPXTrackSegment]) -> [GPXTrackSegment] {
+            var newSegments: [GPXTrackSegment] = []
+            for segment in segments {
+                var currentNewSegment = GPXTrackSegment()
+                for point in segment.points {
+                    guard let latitude = point.latitude, let longitude = point.longitude else {
+                        continue
+                    }
+                    let ptLoc = CLLocation(latitude: latitude, longitude: longitude)
+                    if ptLoc.distance(from: location) > radiusInMeters {
+                        currentNewSegment.add(trackpoint: point)
+                    } else {
+                        // Point erased. If currentNewSegment has points, save it and start a new one.
+                        if currentNewSegment.points.count > 0 {
+                            newSegments.append(currentNewSegment)
+                            currentNewSegment = GPXTrackSegment()
+                        }
+                    }
+                }
+                if currentNewSegment.points.count > 0 {
+                    newSegments.append(currentNewSegment)
+                }
+            }
+            return newSegments
+        }
+        
+        // Erase in currentSegment
+        let processedCurrent = processSegments([currentSegment])
+        if processedCurrent.count > 0 {
+            currentSegment = processedCurrent[0]
+            if processedCurrent.count > 1 {
+                // It was split. Move the first parts to trackSegments
+                for i in 0..<processedCurrent.count-1 {
+                    trackSegments.append(processedCurrent[i])
+                }
+                currentSegment = processedCurrent.last!
+            }
+        } else {
+            currentSegment = GPXTrackSegment()
+        }
+        
+        // Erase in trackSegments
+        trackSegments = processSegments(trackSegments)
+        
+        // Erase in tracks
+        for track in tracks {
+            track.segments = processSegments(track.segments)
+        }
+        
+        // Re-calculate distance and elevation gain
+        recalculateStats()
+    }
+    
+    func recalculateStats() {
+        totalTrackedDistance = 0.0
+        totalElevationGain = 0.0
+        currentTrackDistance = 0.0
+        currentSegmentDistance = 0.0
+        
+        for track in tracks {
+            totalTrackedDistance += track.length
+            totalElevationGain += track.elevationGain
+        }
+        for segment in trackSegments {
+            totalTrackedDistance += segment.length()
+            totalElevationGain += segment.elevationGain()
+            currentTrackDistance += segment.length()
+        }
+        currentSegmentDistance = currentSegment.length()
+        currentTrackDistance += currentSegmentDistance
+        totalTrackedDistance += currentSegmentDistance
+        totalElevationGain += currentSegment.elevationGain()
+    }
+    
+    func getGlobalStats() -> GPXTrackSegment.Stats {
+        var globalStats = GPXTrackSegment.Stats()
+        
+        func addStats(_ stats: GPXTrackSegment.Stats) {
+            globalStats.totalDistance += stats.totalDistance
+            globalStats.totalElevationGain += stats.totalElevationGain
+            globalStats.totalElevationLoss += stats.totalElevationLoss
+            globalStats.movingTime += stats.movingTime
+            
+            if let start = stats.startTime {
+                if let globalStart = globalStats.startTime {
+                    if start < globalStart { globalStats.startTime = start }
+                } else {
+                    globalStats.startTime = start
+                }
+            }
+            if let end = stats.endTime {
+                if let globalEnd = globalStats.endTime {
+                    if end > globalEnd { globalStats.endTime = end }
+                } else {
+                    globalStats.endTime = end
+                }
+            }
+            if let min = stats.minElevation {
+                if let globalMin = globalStats.minElevation {
+                    if min < globalMin { globalStats.minElevation = min }
+                } else {
+                    globalStats.minElevation = min
+                }
+            }
+            if let max = stats.maxElevation {
+                if let globalMax = globalStats.maxElevation {
+                    if max > globalMax { globalStats.maxElevation = max }
+                } else {
+                    globalStats.maxElevation = max
+                }
+            }
+        }
+        
+        for track in tracks {
+            for segment in track.segments {
+                addStats(segment.calculateStats())
+            }
+        }
+        for segment in trackSegments {
+            addStats(segment.calculateStats())
+        }
+        addStats(currentSegment.calculateStats())
+        
+        return globalStats
     }
     
     ///
@@ -151,6 +301,7 @@ class GPXSession {
         
         let lastTrack = gpx.tracks.last ?? GPXTrack()
         totalTrackedDistance += lastTrack.length
+        totalElevationGain += gpx.tracksElevationGain
         
         // Add track segments
         self.tracks = gpx.tracks
