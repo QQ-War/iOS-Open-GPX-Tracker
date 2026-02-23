@@ -2,27 +2,28 @@
 set -euo pipefail
 
 PROJECT="OpenGpxTracker.xcodeproj"
-TARGET="OpenGpxTracker"
+SCHEME="OpenGpxTracker"
 CONFIGURATION="Release"
 BUILD_DIR="build"
-PRODUCT_DIR="${BUILD_DIR}/Products"
+DERIVED_DATA_PATH=".ci-derived-data"
+PRODUCT_DIR="${DERIVED_DATA_PATH}/Build/Products/${CONFIGURATION}-iphoneos"
 APP_PATH="${PRODUCT_DIR}/OpenGpxTracker.app"
 PAYLOAD_DIR="${BUILD_DIR}/Payload"
 IPA_PATH="${BUILD_DIR}/OpenGpxTracker_unsigned.ipa"
 
-rm -rf "${BUILD_DIR}"
+rm -rf "${BUILD_DIR}" "${DERIVED_DATA_PATH}"
 mkdir -p "${BUILD_DIR}"
 
 xcodebuild \
   -project "${PROJECT}" \
-  -target "${TARGET}" \
+  -scheme "${SCHEME}" \
   -configuration "${CONFIGURATION}" \
-  -sdk iphoneos \
-  CONFIGURATION_BUILD_DIR="${PRODUCT_DIR}" \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath "${DERIVED_DATA_PATH}" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY="" \
-  clean build
+  build
 
 if [ ! -d "${APP_PATH}" ]; then
   echo "Expected app not found at ${APP_PATH}"
