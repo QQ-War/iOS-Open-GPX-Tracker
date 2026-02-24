@@ -347,22 +347,39 @@ class Preferences: NSObject {
             }
             do {
                 var isStale: Bool = false
+#if os(watchOS)
+                let url = try URL(
+                    resolvingBookmarkData: bookmarkData,
+                    options: [.withoutUI],
+                    relativeTo: nil,
+                    bookmarkDataIsStale: &isStale
+                )
+#else
                 let url = try URL(
                     resolvingBookmarkData: bookmarkData,
                     options: [.withSecurityScope, .withoutUI],
                     relativeTo: nil,
                     bookmarkDataIsStale: &isStale
                 )
+#endif
                 if isStale {
                     _ = url.startAccessingSecurityScopedResource()
                     defer {
                         url.stopAccessingSecurityScopedResource()
                     }
+#if os(watchOS)
+                    let newBookmark = try url.bookmarkData(
+                        options: [],
+                        includingResourceValuesForKeys: nil,
+                        relativeTo: nil
+                    )
+#else
                     let newBookmark = try url.bookmarkData(
                         options: [.withSecurityScope],
                         includingResourceValuesForKeys: nil,
                         relativeTo: nil
                     )
+#endif
                     _gpxFilesFolderBookmark = newBookmark
                     defaults.set(newBookmark, forKey: kDefaultsKeyGPXFilesFolder)
                 }
@@ -383,11 +400,19 @@ class Preferences: NSObject {
                 defer {
                     newValue.stopAccessingSecurityScopedResource()
                 }
+#if os(watchOS)
+                let newBookmark = try newValue.bookmarkData(
+                    options: [],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                )
+#else
                 let newBookmark = try newValue.bookmarkData(
                     options: [.withSecurityScope],
                     includingResourceValuesForKeys: nil,
                     relativeTo: nil
                 )
+#endif
                 _gpxFilesFolderBookmark = newBookmark
                 defaults.set(newBookmark, forKey: kDefaultsKeyGPXFilesFolder)
             } catch {
