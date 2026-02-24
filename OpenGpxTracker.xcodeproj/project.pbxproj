@@ -527,12 +527,10 @@
 				898EECD219C49B5800B4B207 /* Frameworks */,
 				898EECD319C49B5800B4B207 /* Resources */,
 				DC6FB8E11C49DF2C00B378D4 /* SwiftLint */,
-				BF692F7B2209AAFC00F8A0F1 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				BF692F722209AAFC00F8A0F1 /* PBXTargetDependency */,
 			);
 			name = OpenGpxTracker;
 			productName = OpenGpxTracker;
