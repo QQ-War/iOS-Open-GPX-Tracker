@@ -5,13 +5,12 @@ PROJECT="OpenGpxTracker.xcodeproj"
 TARGET="OpenGpxTracker"
 CONFIGURATION="Release"
 BUILD_DIR="build"
-DERIVED_DATA_PATH=".ci-derived-data"
-PRODUCT_DIR="${DERIVED_DATA_PATH}/Build/Products/${CONFIGURATION}-iphoneos"
+PRODUCT_DIR="${BUILD_DIR}/Products"
 APP_PATH="${PRODUCT_DIR}/OpenGpxTracker.app"
 PAYLOAD_DIR="${BUILD_DIR}/Payload"
 IPA_PATH="${BUILD_DIR}/OpenGpxTracker_unsigned.ipa"
 
-rm -rf "${BUILD_DIR}" "${DERIVED_DATA_PATH}"
+rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 
 xcodebuild \
@@ -19,7 +18,9 @@ xcodebuild \
   -target "${TARGET}" \
   -configuration "${CONFIGURATION}" \
   -destination 'generic/platform=iOS' \
-  -derivedDataPath "${DERIVED_DATA_PATH}" \
+  CONFIGURATION_BUILD_DIR="${PRODUCT_DIR}" \
+  SYMROOT="${BUILD_DIR}/sym" \
+  OBJROOT="${BUILD_DIR}/obj" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY="" \
