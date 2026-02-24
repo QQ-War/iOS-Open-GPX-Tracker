@@ -13,6 +13,7 @@ import CoreGPX
 import MessageUI
 import WatchConnectivity
 import CoreServices
+import UniformTypeIdentifiers
 
 /// Text displayed when there are no GPX files in the folder.
 let kNoFiles = NSLocalizedString("NO_FILES", comment: "no comment")
@@ -168,7 +169,12 @@ class GPXFilesTableViewController: UITableViewController, UINavigationBarDelegat
     /// Handle the folder button action
     @objc func folderButtonTapped() {
         print("GPXFIlesTableViewController: Folder button tapped")
-        let documentVC = UIDocumentPickerViewController(documentTypes: [kUTTypeFolder as String], in: .open)
+        let documentVC: UIDocumentPickerViewController
+        if #available(iOS 14.0, *) {
+            documentVC = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
+        } else {
+            documentVC = UIDocumentPickerViewController(documentTypes: [kUTTypeFolder as String], in: .open)
+        }
         documentVC.allowsMultipleSelection = false
         documentVC.delegate = self
         self.present(documentVC, animated: true)
@@ -433,6 +439,12 @@ class GPXFilesTableViewController: UITableViewController, UINavigationBarDelegat
         if GPXFileManager.gpxExtList.contains(selectedURL.pathExtension) {
             print("GPXFilesTableViewController: documentPicker: elected URL is a GPX File. Loading it")
             loadGPXFile(gpxFileURL: selectedURL)
+            return
+        }
+        // Ensure folder selection is really a directory.
+        let resourceValues = try? selectedURL.resourceValues(forKeys: [.isDirectoryKey])
+        guard resourceValues?.isDirectory == true else {
+            print("GPXFilesTableViewController: documentPicker: selected URL is not a directory")
             return
         }
         // it is a path -> we mark it as the preference folder.

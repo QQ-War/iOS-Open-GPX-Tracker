@@ -347,13 +347,22 @@ class Preferences: NSObject {
             }
             do {
                 var isStale: Bool = false
-                let url = try URL(resolvingBookmarkData: bookmarkData, bookmarkDataIsStale: &isStale)
+                let url = try URL(
+                    resolvingBookmarkData: bookmarkData,
+                    options: [.withSecurityScope, .withoutUI],
+                    relativeTo: nil,
+                    bookmarkDataIsStale: &isStale
+                )
                 if isStale {
                     _ = url.startAccessingSecurityScopedResource()
                     defer {
                         url.stopAccessingSecurityScopedResource()
                     }
-                    let newBookmark = try url.bookmarkData()
+                    let newBookmark = try url.bookmarkData(
+                        options: [.withSecurityScope],
+                        includingResourceValuesForKeys: nil,
+                        relativeTo: nil
+                    )
                     _gpxFilesFolderBookmark = newBookmark
                     defaults.set(newBookmark, forKey: kDefaultsKeyGPXFilesFolder)
                 }
@@ -365,6 +374,7 @@ class Preferences: NSObject {
         }
         set {
             guard let newValue else {
+                _gpxFilesFolderBookmark = nil
                 defaults.removeObject(forKey: kDefaultsKeyGPXFilesFolder)
                 return
             }
@@ -373,7 +383,11 @@ class Preferences: NSObject {
                 defer {
                     newValue.stopAccessingSecurityScopedResource()
                 }
-                let newBookmark = try newValue.bookmarkData()
+                let newBookmark = try newValue.bookmarkData(
+                    options: [.withSecurityScope],
+                    includingResourceValuesForKeys: nil,
+                    relativeTo: nil
+                )
                 _gpxFilesFolderBookmark = newBookmark
                 defaults.set(newBookmark, forKey: kDefaultsKeyGPXFilesFolder)
             } catch {
