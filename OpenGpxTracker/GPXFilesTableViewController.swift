@@ -134,7 +134,7 @@ class GPXFilesTableViewController: UITableViewController, UINavigationBarDelegat
                                            style: .plain,
                                            target: self,
                                            action: #selector(folderButtonTapped))
-            importButton = UIBarButtonItem(image: UIImage(systemName: "plus"),
+            importButton = UIBarButtonItem(image: UIImage(systemName: "doc"),
                                            style: .plain,
                                            target: self,
                                            action: #selector(importButtonTapped))
