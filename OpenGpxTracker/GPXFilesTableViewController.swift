@@ -195,9 +195,9 @@ class GPXFilesTableViewController: UITableViewController, UINavigationBarDelegat
     @objc func importButtonTapped() {
         print("GPXFIlesTableViewController: Import button tapped")
         let documentVC: UIDocumentPickerViewController
-        let gpxType = UTType(importedAs: "com.topografix.gpx")
         
         if #available(iOS 14.0, *) {
+            let gpxType = UTType(importedAs: "com.topografix.gpx")
             documentVC = UIDocumentPickerViewController(forOpeningContentTypes: [gpxType, .xml], asCopy: true)
         } else {
             documentVC = UIDocumentPickerViewController(documentTypes: ["com.topografix.gpx", kUTTypeXML as String], in: .import)
