@@ -205,7 +205,7 @@ class GPXFileManager: NSObject {
                 // Now we filter GPX Files
                 for (url, modificationDate, fileSize) in sortedURLs {
                     if gpxExtList.contains(url.pathExtension) {
-                        GPXFiles.append(GPXFileInfo(fileURL: url))
+                        GPXFiles.append(GPXFileInfo(fileURL: url, modifiedDate: modificationDate, fileSize: fileSize))
                         let lastPathComponent = url.deletingPathExtension().lastPathComponent
                         print("fetchFileList: GPXFileInfo added \(modificationDate) \(modificationDate.timeAgo(numericDates: true)) \(fileSize)bytes -- \(lastPathComponent)")
                     }

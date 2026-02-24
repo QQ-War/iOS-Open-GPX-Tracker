@@ -15,10 +15,10 @@ import Foundation
 class GPXFileInfo: NSObject {
     
     /// Cached modified date. Assumes a short lived time. It keeps the value of the size that only once is retrived from the filesystem
-    var _modifiedDate: Date?
+    private var _modifiedDate: Date?
     
     /// Cached filesize. Assuming a short lived time it keeps the value so only once is retrieved
-    var _fileSize: Int?
+    private var _fileSize: Int?
     
     /// file URL
     var fileURL: URL = URL(fileURLWithPath: "")
@@ -28,14 +28,21 @@ class GPXFileInfo: NSObject {
     /// If for some reason the date cannot be retrieved it returns `Date.distantPast`
     ///
     var modifiedDate: Date {
-        if _modifiedDate != nil {
-            return _modifiedDate!
+        if let cachedDate = _modifiedDate {
+            return cachedDate
+        }
+        let secured = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if secured {
+                fileURL.stopAccessingSecurityScopedResource()
+            }
         }
         guard let resourceValues = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]),
-              let _modifiedDate = resourceValues.contentModificationDate else {
+              let date = resourceValues.contentModificationDate else {
             return Date.distantPast // Default value if the modification date cannot be retrieved
         }
-        return _modifiedDate
+        _modifiedDate = date
+        return date
     }
     /// modified date has a time ago string (for instance: 3 days ago)
     var modifiedDatetimeAgo: String {
@@ -46,14 +53,21 @@ class GPXFileInfo: NSObject {
     /// It returns -1 if there is any issue geting the size from the filesystem
     /// It caches the values in _filezise
     var fileSize: Int {
-        if (_fileSize != nil) {
-            return _fileSize!
+        if let cachedSize = _fileSize {
+            return cachedSize
+        }
+        let secured = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if secured {
+                fileURL.stopAccessingSecurityScopedResource()
+            }
         }
         guard let resourceValues = try? fileURL.resourceValues(forKeys: [.fileSizeKey]),
-              let _filesize = resourceValues.fileSize else {
+              let size = resourceValues.fileSize else {
             return -1 // Default value if the file size cannot be retrieved
         }
-        return _filesize
+        _fileSize = size
+        return size
     }
     
     /// File size as string in a more readable format (example: 10 KB)
@@ -77,6 +91,14 @@ class GPXFileInfo: NSObject {
     ///
     init(fileURL: URL) {
         self.fileURL = fileURL
+        super.init()
+    }
+
+    /// Initializes the object with pre-fetched info
+    init(fileURL: URL, modifiedDate: Date, fileSize: Int) {
+        self.fileURL = fileURL
+        self._modifiedDate = modifiedDate
+        self._fileSize = fileSize
         super.init()
     }
     

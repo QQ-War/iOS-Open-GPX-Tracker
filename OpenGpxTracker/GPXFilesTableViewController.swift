@@ -171,9 +171,9 @@ class GPXFilesTableViewController: UITableViewController, UINavigationBarDelegat
         print("GPXFIlesTableViewController: Folder button tapped")
         let documentVC: UIDocumentPickerViewController
         if #available(iOS 14.0, *) {
-            documentVC = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
+            documentVC = UIDocumentPickerViewController(forOpeningContentTypes: [.folder, .directory], asCopy: false)
         } else {
-            documentVC = UIDocumentPickerViewController(documentTypes: [kUTTypeFolder as String], in: .open)
+            documentVC = UIDocumentPickerViewController(documentTypes: [kUTTypeFolder as String, kUTTypeDirectory as String], in: .open)
         }
         documentVC.allowsMultipleSelection = false
         documentVC.delegate = self
@@ -426,32 +426,51 @@ class GPXFilesTableViewController: UITableViewController, UINavigationBarDelegat
     
     // MARK: - UIDocumentPickerDelegate
     
-    /// When the user selects the
+    /// When the user selects the folder
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        print("GPXFilesTableViewController: documentPicker: didPickDocumentsAt \(urls)")
         guard let selectedURL = urls.first else {
             print("GPXFilesTableViewController: documentPicker: User didn't select any folder")
             return
         }
+        
+        // Start accessing the security-scoped resource
+        let isSecured = selectedURL.startAccessingSecurityScopedResource()
+        defer {
+            if isSecured {
+                selectedURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
         // Update preferences and folder
-        print("GPXFilesTableViewController: documentPicker:  selected URL \(selectedURL)")
+        print("GPXFilesTableViewController: documentPicker: selected URL \(selectedURL)")
         
         // If the selected url is a GPX file, then open the GPX File
         if GPXFileManager.gpxExtList.contains(selectedURL.pathExtension) {
-            print("GPXFilesTableViewController: documentPicker: elected URL is a GPX File. Loading it")
+            print("GPXFilesTableViewController: documentPicker: selected URL is a GPX File. Loading it")
             loadGPXFile(gpxFileURL: selectedURL)
             return
         }
+        
         // Ensure folder selection is really a directory.
         let resourceValues = try? selectedURL.resourceValues(forKeys: [.isDirectoryKey])
         guard resourceValues?.isDirectory == true else {
             print("GPXFilesTableViewController: documentPicker: selected URL is not a directory")
             return
         }
+        
         // it is a path -> we mark it as the preference folder.
         Preferences.shared.gpxFilesFolderURL = selectedURL
         
-        folderLabel.text = selectedURL.lastPathComponent
-        reloadTableData()
+        DispatchQueue.main.async {
+            self.folderLabel.text = selectedURL.lastPathComponent
+            self.reloadTableData()
+            controller.dismiss(animated: true)
+        }
+    }
+    
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        print("GPXFilesTableViewController: documentPickerWasCancelled")
     }
     
     ///
