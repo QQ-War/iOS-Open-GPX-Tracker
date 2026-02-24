@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT="OpenGpxTracker.xcodeproj"
-SCHEME="OpenGpxTracker"
+TARGET="OpenGpxTracker"
 CONFIGURATION="Release"
 BUILD_DIR="build"
 DERIVED_DATA_PATH=".ci-derived-data"
@@ -16,7 +16,7 @@ mkdir -p "${BUILD_DIR}"
 
 xcodebuild \
   -project "${PROJECT}" \
-  -scheme "${SCHEME}" \
+  -target "${TARGET}" \
   -configuration "${CONFIGURATION}" \
   -destination 'generic/platform=iOS' \
   -derivedDataPath "${DERIVED_DATA_PATH}" \
