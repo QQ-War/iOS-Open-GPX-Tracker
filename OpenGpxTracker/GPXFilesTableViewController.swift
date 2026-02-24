@@ -128,20 +128,28 @@ class GPXFilesTableViewController: UITableViewController, UINavigationBarDelegat
         
         // Add the button to select the current folder
         var folderButton: UIBarButtonItem = UIBarButtonItem()
+        var importButton: UIBarButtonItem = UIBarButtonItem()
         if #available(iOS 13.0, *) {
             folderButton = UIBarButtonItem(image: UIImage(systemName: "folder"),
                                            style: .plain,
                                            target: self,
                                            action: #selector(folderButtonTapped))
+            importButton = UIBarButtonItem(image: UIImage(systemName: "plus"),
+                                           style: .plain,
+                                           target: self,
+                                           action: #selector(importButtonTapped))
             
         } else {
             folderButton = UIBarButtonItem(title: NSLocalizedString("FOLDER", comment: "no comment"),
                                            style: UIBarButtonItem.Style.plain,
                                            target: self,
                                            action: #selector(folderButtonTapped))
+            importButton = UIBarButtonItem(barButtonSystemItem: .add,
+                                           target: self,
+                                           action: #selector(importButtonTapped))
             
         }
-        self.navigationItem.leftBarButtonItems = [folderButton]
+        self.navigationItem.leftBarButtonItems = [folderButton, importButton]
         
         // Initial load of the data
         let list: [GPXFileInfo] = GPXFileManager.fileList
@@ -180,6 +188,22 @@ class GPXFilesTableViewController: UITableViewController, UINavigationBarDelegat
         documentVC.delegate = self
         
         // Ensure it's presented on the visible view controller
+        self.present(documentVC, animated: true)
+    }
+
+    /// Handle the import file button action
+    @objc func importButtonTapped() {
+        print("GPXFIlesTableViewController: Import button tapped")
+        let documentVC: UIDocumentPickerViewController
+        let gpxType = UTType(importedAs: "com.topografix.gpx")
+        
+        if #available(iOS 14.0, *) {
+            documentVC = UIDocumentPickerViewController(forOpeningContentTypes: [gpxType, .xml], asCopy: true)
+        } else {
+            documentVC = UIDocumentPickerViewController(documentTypes: ["com.topografix.gpx", kUTTypeXML as String], in: .import)
+        }
+        documentVC.allowsMultipleSelection = false
+        documentVC.delegate = self
         self.present(documentVC, animated: true)
     }
     
