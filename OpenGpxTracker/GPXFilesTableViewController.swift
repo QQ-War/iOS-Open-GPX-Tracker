@@ -171,12 +171,15 @@ class GPXFilesTableViewController: UITableViewController, UINavigationBarDelegat
         print("GPXFIlesTableViewController: Folder button tapped")
         let documentVC: UIDocumentPickerViewController
         if #available(iOS 14.0, *) {
-            documentVC = UIDocumentPickerViewController(forOpeningContentTypes: [.folder, .directory], asCopy: false)
+            // Use only .folder to ensure 'Open' button refers to the current directory
+            documentVC = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
         } else {
-            documentVC = UIDocumentPickerViewController(documentTypes: [kUTTypeFolder as String, kUTTypeDirectory as String], in: .open)
+            documentVC = UIDocumentPickerViewController(documentTypes: ["public.folder"], in: .open)
         }
         documentVC.allowsMultipleSelection = false
         documentVC.delegate = self
+        
+        // Ensure it's presented on the visible view controller
         self.present(documentVC, animated: true)
     }
     
