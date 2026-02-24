@@ -452,18 +452,26 @@ class GPXFilesTableViewController: UITableViewController, UINavigationBarDelegat
             return
         }
         
-        // Ensure folder selection is really a directory.
+        // Ensure folder selection is really a directory. Some providers may fail
+        // to return isDirectory reliably, so use hasDirectoryPath as a fallback.
         let resourceValues = try? selectedURL.resourceValues(forKeys: [.isDirectoryKey])
-        guard resourceValues?.isDirectory == true else {
+        let isDirectory = resourceValues?.isDirectory ?? selectedURL.hasDirectoryPath
+        guard isDirectory else {
             print("GPXFilesTableViewController: documentPicker: selected URL is not a directory")
+            Toast.error(NSLocalizedString("INVALID_FOLDER", value: "Please select a folder", comment: ""))
             return
         }
         
         // it is a path -> we mark it as the preference folder.
         Preferences.shared.gpxFilesFolderURL = selectedURL
+        guard let persistedURL = Preferences.shared.gpxFilesFolderURL else {
+            print("GPXFilesTableViewController: documentPicker: failed to persist selected folder")
+            Toast.error(NSLocalizedString("FOLDER_PERMISSION_FAILED", value: "Unable to use this folder", comment: ""))
+            return
+        }
         
         DispatchQueue.main.async {
-            self.folderLabel.text = selectedURL.lastPathComponent
+            self.folderLabel.text = persistedURL.lastPathComponent
             self.reloadTableData()
             controller.dismiss(animated: true)
         }
